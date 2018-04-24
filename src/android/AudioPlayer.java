@@ -39,6 +39,8 @@ import java.io.OutputStream;
 import java.io.IOException;
 import java.util.LinkedList;
 
+import org.apache.cordova.media.ExtAudioRecorder;
+
 /**
  * This class implements the audio playback and recording capabilities used by Cordova.
  * It is called by the AudioHandler Cordova class.
@@ -85,7 +87,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
     private String audioFile = null;        // File name to play or record to
     private float duration = -1;            // Duration of audio
 
-    private MediaRecorder recorder = null;  // Audio recording object
+    private ExtAudioRecorder recorder = null;  // Audio recording object
     private LinkedList<String> tempFiles = null; // Temporary recording file name
     private String tempFile = null;
 
@@ -149,12 +151,9 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
             break;
         case NONE:
             this.audioFile = file;
-            this.recorder = new MediaRecorder();
-            this.recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-            this.recorder.setOutputFormat(MediaRecorder.OutputFormat.AAC_ADTS); // RAW_AMR);
-            this.recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC); //AMR_NB);
-            this.tempFile = generateTempFile();
-            this.recorder.setOutputFile(this.tempFile);
+            this.recorder = ExtAudioRecorder.getInstanse();
+            this.recorder.setOutputFile(this.audioFile);
+
             try {
                 this.recorder.prepare();
                 this.recorder.start();
@@ -162,10 +161,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
                 return;
             } catch (IllegalStateException e) {
                 e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
             }
-
             sendErrorStatus(MEDIA_ERR_ABORTED);
             break;
         case RECORD:
@@ -195,6 +191,10 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
 
         // only one file so just copy it
         if (size == 1) {
+            if (this.tempFile == null) {
+                return;
+            }
+
             String logMsg = "renaming " + this.tempFile + " to " + file;
             LOG.d(LOG_TAG, logMsg);
             File f = new File(this.tempFile);
@@ -264,13 +264,13 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
                     this.recorder.stop();
                 }
                 this.recorder.reset();
-                if (!this.tempFiles.contains(this.tempFile)) {
+                if (this.tempFile != null && !this.tempFiles.contains(this.tempFile)) {
                     this.tempFiles.add(this.tempFile);
                 }
                 if (stop) {
                     LOG.d(LOG_TAG, "stopping recording");
                     this.setState(STATE.MEDIA_STOPPED);
-                    this.moveFile(this.audioFile);
+                    //this.moveFile(this.audioFile);
                 } else {
                     LOG.d(LOG_TAG, "pause recording");
                     this.setState(STATE.MEDIA_PAUSED);
